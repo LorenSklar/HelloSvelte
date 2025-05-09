@@ -1,14 +1,20 @@
 <script>
-  const colors = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'indigo'];
+  import { COLORS, MOVEMENT_SPEED, getInitialPosition } from '$lib/constants';
+  import { onMount } from 'svelte';
+  
   let currentColorIndex = 0;
   let position = { x: 0, y: 0 };
   let isDragging = false;
   let dragOffset = { x: 0, y: 0 };
+  let keys = new Set();
+
+  onMount(() => {
+    position = getInitialPosition();
+  });
 
   function handleClick(event) {
-    // Only change color if we're not dragging
     if (!isDragging) {
-      currentColorIndex = (currentColorIndex + 1) % colors.length;
+      currentColorIndex = (currentColorIndex + 1) % COLORS.length;
     }
   }
 
@@ -32,13 +38,64 @@
   function handleMouseUp() {
     isDragging = false;
   }
+
+  function handleKeyDown(event) {
+    keys.add(event.key);
+  }
+
+  function handleKeyUp(event) {
+    keys.delete(event.key);
+  }
+
+  function updatePosition() {
+    if (isDragging) return;
+
+    const newPosition = { ...position };
+    
+    if (keys.has('ArrowLeft')) newPosition.x -= MOVEMENT_SPEED;
+    if (keys.has('ArrowRight')) newPosition.x += MOVEMENT_SPEED;
+    if (keys.has('ArrowUp')) newPosition.y -= MOVEMENT_SPEED;
+    if (keys.has('ArrowDown')) newPosition.y += MOVEMENT_SPEED;
+
+    // Keep text within viewport bounds
+    if (typeof window !== 'undefined') {
+      newPosition.x = Math.max(0, Math.min(window.innerWidth, newPosition.x));
+      newPosition.y = Math.max(0, Math.min(window.innerHeight, newPosition.y));
+    }
+
+    position = newPosition;
+  }
+
+  // Set up animation frame loop for smooth movement
+  let animationFrameId;
+  
+  function animate() {
+    updatePosition();
+    animationFrameId = requestAnimationFrame(animate);
+  }
+
+  // Start animation loop
+  onMount(() => {
+    animate();
+  });
+
+  // Clean up animation frame on component destroy
+  import { onDestroy } from 'svelte';
+  onDestroy(() => {
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+  });
 </script>
 
-<svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
+<svelte:window 
+  on:mousemove={handleMouseMove} 
+  on:mouseup={handleMouseUp}
+  on:keydown={handleKeyDown}
+  on:keyup={handleKeyUp}
+/>
 
 <main>
   <h1 
-    style="color: {colors[currentColorIndex]}; 
+    style="color: {COLORS[currentColorIndex]}; 
            cursor: move;
            position: absolute;
            left: {position.x}px;

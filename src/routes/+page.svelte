@@ -7,22 +7,45 @@
   let isDragging = false;
   let dragOffset = { x: 0, y: 0 };
   let keys = new Set();
+  let touchStartTime = 0;
+  let touchStartPosition = { x: 0, y: 0 };
 
   onMount(() => {
     position = getInitialPosition();
   });
 
   function handleClick(event) {
-    if (!isDragging) {
+    // Only change color if it's a quick tap/click without movement
+    const now = Date.now();
+    const timeDiff = now - touchStartTime;
+    const distanceMoved = Math.sqrt(
+      Math.pow(event.clientX - touchStartPosition.x, 2) +
+      Math.pow(event.clientY - touchStartPosition.y, 2)
+    );
+
+    if (timeDiff < 200 && distanceMoved < 10 && !isDragging) {
       currentColorIndex = (currentColorIndex + 1) % COLORS.length;
     }
   }
 
   function handleMouseDown(event) {
     isDragging = true;
+    touchStartTime = Date.now();
+    touchStartPosition = { x: event.clientX, y: event.clientY };
     dragOffset = {
       x: event.clientX - position.x,
       y: event.clientY - position.y
+    };
+  }
+
+  function handleTouchStart(event) {
+    isDragging = true;
+    touchStartTime = Date.now();
+    const touch = event.touches[0];
+    touchStartPosition = { x: touch.clientX, y: touch.clientY };
+    dragOffset = {
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y
     };
   }
 
@@ -35,7 +58,21 @@
     }
   }
 
+  function handleTouchMove(event) {
+    if (isDragging) {
+      const touch = event.touches[0];
+      position = {
+        x: touch.clientX - dragOffset.x,
+        y: touch.clientY - dragOffset.y
+      };
+    }
+  }
+
   function handleMouseUp() {
+    isDragging = false;
+  }
+
+  function handleTouchEnd() {
     isDragging = false;
   }
 
@@ -103,6 +140,9 @@
            transform: translate(-50%, -50%);"
     on:click={handleClick}
     on:mousedown={handleMouseDown}
+    on:touchstart={handleTouchStart}
+    on:touchmove={handleTouchMove}
+    on:touchend={handleTouchEnd}
   >
     hello
   </h1>
